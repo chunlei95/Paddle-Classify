@@ -22,6 +22,7 @@ warnings.filterwarnings('ignore')
 
 
 def main():
+    # todo 固定随机数种子，实现可复现性能
     seed = 42
     batch_size = 64
     lr = 0.0006
@@ -37,6 +38,7 @@ def main():
         transforms.RandomVerticalFlip(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
+        # todo 增加增强策略
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -141,7 +143,7 @@ def main():
 
         wandb.log({'train_loss': avg_loss, 'eval_loss': eval_avg_loss, 'lr': optimizer.get_lr()})
         logger.info(
-            "[Epoch {}]: avg train loss = {}, avg eval Loss = {}, train time cost = {}s, eval time cost = {}s, lr update to {}".format(
+            "[Epoch {}]: avg train loss = {}, avg eval Loss = {}, train time cost = {}s, eval time cost = {}s, lr = {}".format(
                 epoch + 1,
                 '%.4f' % avg_loss,
                 '%.4f' % eval_avg_loss,
@@ -157,17 +159,16 @@ def main():
         recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')
         wandb.log({'accuracy': accuracy, 'recall': recall, 'precision': precision, 'f1': f1})
 
-        logger.info(
-            '[Epoch {}]: The evaluation metrics are following: \n'
-            '     ****************************************************\n'
-            '     |  Accuracy  |   Recall  |  Precision  |  F1 score |\n'
-            '     ****************************************************\n'
-            '     |   {}   |   {}  |   {}    |   {}  |\n'
-            '     ****************************************************'.format(
-                epoch + 1, '%.4f' % accuracy,
-                '%.4f' % recall, '%.4f' % precision,
-                '%.4f' % f1))
+        # 更新最优模型
+        best_model_path = checkpoint_root_path + '/best_model.pdparams'
+        if f1 > best_f1:
+            best_f1 = f1
+            best_f1_accuracy = accuracy
+            best_model_epoch = epoch + 1
+            paddle.save(model.state_dict(), best_model_path)
+            logger.info('[Epoch {}]: save best model to {}'.format(epoch + 1, os.path.abspath(best_model_path)))
 
+        # 保存当前断点
         checkpoint = dict(
             model=model.state_dict(),
             optimizer=optimizer.state_dict(),
@@ -180,27 +181,20 @@ def main():
             f1=f1
         )
 
-        # 更新最优模型
-        best_model_path = checkpoint_root_path + '/best_model.pdparams'
-        if f1 > best_f1:
-            best_f1 = f1
-            best_f1_accuracy = accuracy
-            best_model_epoch = epoch + 1
-            paddle.save(model.state_dict(), best_model_path)
-            logger.info('[Epoch {}]: save best model to {}'.format(epoch + 1, os.path.abspath(best_model_path)))
-
-        # 保存当前断点
         checkpoint_path = checkpoint_root_path + f'/checkpoint_{epoch + 1}.pdparams'
         paddle.save(checkpoint, checkpoint_path)
         logger.info(
-            '[Epoch {}]: Model saved to {}, current best model infos are following: \n'
-            '     ****************************************************\n'
-            '     |  Best Epoch  |  Best F1 Score  |  Best Accuracy  |\n'
-            '     ****************************************************\n'
-            '     |     {}        |      {}     |      {}     |\n'
-            '     ****************************************************'.format(
+            '[Epoch {}]: The evaluation metrics and current best model infos are following: \n'
+            '     *******************************************************************************************************\n'
+            '     |  F1 Score  |  Accuracy  |  Recall  |  Precision  |  Best Epoch  |  Best F1 Score  |  Best Accuracy  |\n'
+            '     *******************************************************************************************************\n'
+            '     |   {}   |   {}   |  {}  |   {}    |       {}      |      {}     |     {}      |\n'
+            '     *******************************************************************************************************'.format(
                 epoch + 1,
-                os.path.abspath(checkpoint_path),
+                '%.4f' % f1,
+                '%.4f' % accuracy,
+                '%.4f' % recall,
+                '%.4f' % precision,
                 best_model_epoch,
                 '%.4f' % best_f1,
                 '%.4f' % best_f1_accuracy
@@ -212,7 +206,6 @@ def main():
             remove_path = 'checkpoint/checkpoint_{}.pdparams'.format(epoch + 1 - checkpoint_save_num)
             os.remove(os.path.abspath(remove_path))
             checkpoint_num -= 1
-            logger.info(f"[Epoch {epoch + 1}]: Model removed from {os.path.abspath(remove_path)}")
 
 
 if __name__ == "__main__":
