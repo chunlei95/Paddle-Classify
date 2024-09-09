@@ -1,3 +1,4 @@
+import functools
 import math
 
 import paddle
@@ -20,7 +21,7 @@ class BuildNorm(nn.Layer):
     def forward(self, x):
         if self.norm_type is None:
             return x
-        if self.norm_type == nn.LayerNorm:
+        if self.norm_type == nn.LayerNorm or (type(self.norm_type) == functools.partial and self.norm_type.func == nn.LayerNorm):
             x = paddle.transpose(x, (0, 2, 3, 1))
             x = self.norm(x)
             x = paddle.transpose(x, (0, 3, 1, 2))
@@ -164,7 +165,7 @@ class MSLKA_S(nn.Layer):
 
     def forward(self, x):
         x1, x2, x3, x4 = paddle.split(x, [x.shape[1] - self.mid_channels * 3, self.mid_channels, self.mid_channels,
-                                          self.mid_channels])
+                                          self.mid_channels], axis=1)
         x1 = self.base(x1)
         x2 = self.b2(x2)
         x3 = self.b3(x3)
@@ -234,7 +235,6 @@ class OverlapPatchEmbed(nn.Layer):
     """
 
     def __init__(self,
-                 img_size=224,
                  patch_size=7,
                  stride=4,
                  in_chans=3,
@@ -252,7 +252,7 @@ class OverlapPatchEmbed(nn.Layer):
         x = self.proj(x)
         _, _, H, W = x.shape
         x = self.norm(x)
-        return x, H, W
+        return x
 
 
 class PatchCombined(nn.Layer):
@@ -352,8 +352,8 @@ class Modified_VAN(nn.Layer):
 
         for i in range(num_stages):
             patch_embed = OverlapPatchEmbed(
-                img_size=img_size if i == 0 else img_size // (2 ** (i + 1)),
-                patch_size=7 if i == 0 else 3,
+                # patch_size=7 if i == 0 else 3,
+                patch_size=3,
                 stride=4 if i == 0 else 2,
                 in_chans=in_chans if i == 0 else embed_dims[i - 1],
                 embed_dim=embed_dims[i]) if i == 0 else PatchCombined(dim=embed_dims[i - 1], norm_layer=norm_layer)
@@ -396,16 +396,16 @@ class Modified_VAN(nn.Layer):
                 zeros_(m.bias)
 
     def forward_features(self, x):
-        B = x.shape[0]
+        # B = x.shape[0]
 
         for i in range(self.num_stages):
             patch_embed = getattr(self, f"patch_embed{i + 1}")
             block = getattr(self, f"block{i + 1}")
             norm = getattr(self, f"norm{i + 1}")
-            x, H, W = patch_embed(x)
+            x = patch_embed(x)
             for blk in block:
                 x = blk(x)
-
+            B, C, H, W = x.shape
             x = x.flatten(2)
             x = swapdim(x, 1, 2)
             x = norm(x)

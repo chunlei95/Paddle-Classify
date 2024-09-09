@@ -65,7 +65,7 @@ class CropIdentityDataset(Dataset):
                 self.label_list.extend([class_id] * (img_num - val_num))
                 count_dict.update({class_name: (img_num - val_num)})
         print(count_dict)
-        if mode == 'train' or mode == 'val':
+        if mode == 'train':
             data_paths = glob(augment_root + '/*')
             if data_paths is None or len(data_paths) == 0:
                 create_train_dataset(augment_root, 1000, count_dict, img_dict)

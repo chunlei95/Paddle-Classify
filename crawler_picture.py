@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from tqdm import tqdm
 
-path = '.crop_datasets\\'
+path = 'crop_datasets\\'
 pattern = '[\u4e00-\u9fa5]+'
 
 
@@ -19,7 +19,7 @@ def parseHtml(text, query, num):
     loop = tqdm(range(len(img)), total=len(img), desc='Total collect {} images'.format(len(img)), colour='green')
     for index, value in enumerate(loop):
         imageUrl = img[index]['data-imgurl']
-        imageName = 'image_' + str(index) + '.jpg'
+        imageName = 'image_extend_' + str(index) + '.jpg'
         savePhoto(imageUrl, query, imageName)
 
 
@@ -62,8 +62,8 @@ def slideBrowseWindow(driver, number):
 if __name__ == '__main__':
     driver = webdriver.Edge()
 
-    query = '芹菜'
-    num = 400
+    query = '板蓝根种植'
+    num = 500
 
     scroll_num = num // 10
     search_url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(query)}"

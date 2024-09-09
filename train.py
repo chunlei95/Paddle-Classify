@@ -13,8 +13,8 @@ from paddle.io import DataLoader
 
 from core.train import train
 from datasets.cropidentity import CropIdentityDataset
-from models.modified_van import Modified_VAN
-from models.van import VAN
+from models.InceptionNeXt import InceptionNeXt_T
+from models.van import VAN, VAN_B3
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -24,10 +24,10 @@ warnings.filterwarnings('ignore')
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
-    parser.add_argument('--lr', dest='lr', default='0.0006', type=float, help='learning rate')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, default=64, help='batch size')
-    parser.add_argument('--total_epoch', dest='total_epoch', default=100, type=int, help='total training epoch')
+    # parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
+    parser.add_argument('--lr', dest='lr', default='0.0012', type=float, help='learning rate')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=16, help='batch size')
+    parser.add_argument('--total_epoch', dest='total_epoch', default=200, type=int, help='total training epoch')
     parser.add_argument('--eval_epoch', dest='eval_epoch', default=0, type=int,
                         help='the epoch start evaluate the training model')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -38,9 +38,10 @@ def parse_args():
                         help='the number of checkpoint saved')
     parser.add_argument('--resume', dest='resume', default=None, type=str, help='resume checkpoint path')
     parser.add_argument('--device', dest='device', default='gpu', type=str, choices=['gpu', 'cpu'])
-    parser.add_argument('--use_wandb', dest='use_wandb', default=True, type=bool,
+    parser.add_argument('--use_wandb', dest='use_wandb', default=True, action='store_true',
                         help='whether to use wandb to log metrics')
-    parser.add_argument('--wandb_key', dest='wandb_key', default=None, type=str, help='the key used to login wandb')
+    parser.add_argument('--wandb_key', dest='wandb_key', default='4fceea5c83c7ff2e496774cc0359554fc8912e77', type=str,
+                        help='the key used to login wandb')
     return parser.parse_args()
 
 
@@ -58,9 +59,7 @@ def main(args):
         transforms.RandomVerticalFlip(),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
-        # todo 增加增强策略
         transforms.Resize((224, 224)),
-        transforms.ColorJitter(0.5, 0.5, 0.5, 0.5),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         transforms.RandomErasing()
@@ -71,11 +70,11 @@ def main(args):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     train_dataset = CropIdentityDataset(data_root=data_root,
-                                        augment_root='D:/datasets/augment_crop_identity_train',
+                                        augment_root='D:/dataset/augment_crop_identity_train',
                                         mode='train',
                                         transforms=train_transform)
     val_dataset = CropIdentityDataset(data_root=data_root,
-                                      augment_root='D:/datasets/augment_crop_identity_val',
+                                      augment_root='D:/dataset/augment_crop_identity_val',
                                       mode='val',
                                       transforms=val_transform)
     train_loader = DataLoader(train_dataset, shuffle=True, drop_last=True, batch_size=args.batch_size)
@@ -84,26 +83,23 @@ def main(args):
     # 对于农作物分类来说，目前最好的模型是VAN
     # model = VAN(class_num=19,
     #             drop_path_rate=0.2,
-    #             drop_rate=0.2,
+    #             drop_rate=0.,
     #             embed_dims=[64, 128, 320, 512],
     #             mlp_ratios=[8, 8, 4, 4],
     #             norm_layer=partial(nn.LayerNorm, epsilon=1e-6),
     #             depths=[3, 3, 12, 3])
 
-    model = Modified_VAN(
-        class_num=19,
-        drop_path_rate=0.2,
-        drop_rate=0.2,
-        embed_dims=[64, 128, 256, 512],
-        mlp_ratios=[8, 8, 4, 4],
-        norm_layer=partial(nn.LayerNorm, epsilon=1e-6),
-        depths=[3, 3, 12, 3]
-    )
+    # model = VAN_B3(pretrained=True, class_num=19, drop_path_rate=0.2, drop_rate=0.1)
+
+    model = InceptionNeXt_T(num_classes=19, in_channels=3)
+
     # model = VAN_B2(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
     # model = ConvNeXt_base_224(class_num=19, drop_path_rate=0.2)
-    loss_fn = nn.CrossEntropyLoss()
-    lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.epoch)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
+    lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch)
+
+    # optimizer = paddle.optimizer.Adam(parameters=model.parameters(), learning_rate=0.001)
     optimizer = paddle.optimizer.AdamW(parameters=model.parameters(), learning_rate=lr_scheduler)
 
     if not os.path.exists(args.ckpt_save_path):
@@ -124,18 +120,18 @@ def main(args):
         best_score_epoch = ckpt_params['best_score_epoch']
 
     if args.use_wandb:
-        wandb.init(project="crop-identity",
-                   config={
-                       "batch_size": args.batch_size,
-                       "epochs": args.epoch,
-                       "lr": args.lr,
-                       "optimizer": "AdamW",
-                       "loss": "CrossEntropyLoss"
-                   })
         if args.wandb_key is not None:
             wandb.login(key=args.wandb_key)
         else:
             wandb.login(anonymous='allow')
+        wandb.init(project="crop-identity",
+                   config={
+                       "batch_size": args.batch_size,
+                       "epochs": args.total_epoch,
+                       "lr": args.lr,
+                       "optimizer": "AdamW",
+                       "loss": "CrossEntropyLoss"
+                   })
 
     train(model=model,
           train_loader=train_loader,

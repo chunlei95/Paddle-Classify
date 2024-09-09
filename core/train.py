@@ -29,7 +29,7 @@ def train(model,
         epoch_start = time.time()
         model.train()
         total_loss = 0.0
-        train_loop = tqdm(train_loader, total=len(train_loader), ncols=110, leave=True, colour='green', unit='img')
+        train_loop = tqdm(train_loader, total=len(train_loader), ncols=110, leave=False, colour='green', unit='img')
         for epoch_iter, batch in enumerate(train_loop):
             iter_start = time.time()
             inputs, labels = batch
@@ -47,6 +47,7 @@ def train(model,
                 '%.4f' % loss.item(),
                 '%.4f' % iter_interval)
             )
+        train_loop.clear()
         lr_scheduler.step()
         if epoch + 1 >= start_val_step:
             epoch_end = time.time()
@@ -94,7 +95,7 @@ def train(model,
                 '     *******************************************************************************************************\n'
                 '        F1 Score  |  Accuracy  |  Recall  |  Precision  |  Best F1 Score  |  Best Accuracy  |  Best Epoch  \n'
                 '     *******************************************************************************************************\n'
-                '         {}   |   {}   |  {}  |   {}    |      {}        |     {}      |     {}      \n'
+                '         {}   |   {}   |  {}  |   {}    |      {}     |     {}      |     {}      \n'
                 '     *******************************************************************************************************'.format(
                     epoch + 1,
                     '%.4f' % f1,
