@@ -1,9 +1,11 @@
-import time
-from tqdm import tqdm
-import wandb
-from core.eval import evaluate
-import paddle
 import os
+import time
+
+import paddle
+import wandb
+from tqdm import tqdm
+
+from core.eval import evaluate
 
 
 def train(model,
@@ -16,14 +18,13 @@ def train(model,
           start_epoch,
           start_val_step,
           logger,
+          use_wandb,
           checkpoint_root_path,
           checkpoint_save_num,
           best_score,
           best_score_acc,
           best_score_epoch):
     best_f1 = best_score
-    best_f1_accuracy = best_score_acc
-    best_model_epoch = best_score_epoch
     checkpoint_num = 0
     for epoch in range(start_epoch, total_epoch):
         epoch_start = time.time()
@@ -55,8 +56,10 @@ def train(model,
             avg_loss = total_loss / len(train_loader)
 
             model.eval()
-            val_interval, eval_avg_loss, accuracy, f1, recall, precision = evaluate(model, val_loader, loss_fn, epoch)
-            wandb.log({'train_loss': avg_loss, 'eval_loss': eval_avg_loss, 'lr': optimizer.get_lr()})
+            val_interval, eval_avg_loss, accuracy, f1, recall, precision = evaluate(model, val_loader, loss_fn, epoch,
+                                                                                    use_wandb)
+            if use_wandb:
+                wandb.log({'train_loss': avg_loss, 'eval_loss': eval_avg_loss, 'lr': optimizer.get_lr()})
             logger.info(
                 "[Epoch {}]: avg train loss = {}, avg eval Loss = {}, train time cost = {}s, eval time cost = {}s, lr = {}".format(
                     epoch + 1,
@@ -71,8 +74,8 @@ def train(model,
             best_model_path = checkpoint_root_path + '/best_model.pdparams'
             if f1 > best_f1:
                 best_f1 = f1
-                best_f1_accuracy = accuracy
-                best_model_epoch = epoch + 1
+                best_score_acc = accuracy
+                best_score_epoch = epoch + 1
                 paddle.save(model.state_dict(), best_model_path)
                 logger.info('[Epoch {}]: save best model to {}'.format(epoch + 1, os.path.abspath(best_model_path)))
 
@@ -84,7 +87,7 @@ def train(model,
                 epoch=epoch,
                 best_score=best_f1,
                 best_score_acc=best_score_acc,
-                best_score_epoch=best_model_epoch
+                best_score_epoch=best_score_epoch
             )
 
             checkpoint_path = checkpoint_root_path + f'/checkpoint_{epoch + 1}.pdparams'
@@ -103,8 +106,8 @@ def train(model,
                     '%.4f' % recall,
                     '%.4f' % precision,
                     '%.4f' % best_f1,
-                    '%.4f' % best_f1_accuracy,
-                    best_model_epoch,
+                    '%.4f' % best_score_acc,
+                    best_score_epoch,
                 )
             )
 

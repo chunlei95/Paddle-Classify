@@ -2,7 +2,6 @@ import argparse
 import os
 import random
 import warnings
-from functools import partial
 
 import numpy as np
 import paddle
@@ -13,8 +12,7 @@ from paddle.io import DataLoader
 
 from core.train import train
 from datasets.cropidentity import CropIdentityDataset
-from models.InceptionNeXt import InceptionNeXt_T
-from models.van import VAN, VAN_B3
+from models.SHViT import SHViT_S4
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -25,9 +23,9 @@ warnings.filterwarnings('ignore')
 def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
-    parser.add_argument('--lr', dest='lr', default='0.0012', type=float, help='learning rate')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, default=16, help='batch size')
-    parser.add_argument('--total_epoch', dest='total_epoch', default=200, type=int, help='total training epoch')
+    parser.add_argument('--lr', dest='lr', default='0.0006', type=float, help='learning rate')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=64, help='batch size')
+    parser.add_argument('--total_epoch', dest='total_epoch', default=300, type=int, help='total training epoch')
     parser.add_argument('--eval_epoch', dest='eval_epoch', default=0, type=int,
                         help='the epoch start evaluate the training model')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -38,7 +36,7 @@ def parse_args():
                         help='the number of checkpoint saved')
     parser.add_argument('--resume', dest='resume', default=None, type=str, help='resume checkpoint path')
     parser.add_argument('--device', dest='device', default='gpu', type=str, choices=['gpu', 'cpu'])
-    parser.add_argument('--use_wandb', dest='use_wandb', default=True, action='store_true',
+    parser.add_argument('--use_wandb', dest='use_wandb', default=False, action='store_true',
                         help='whether to use wandb to log metrics')
     parser.add_argument('--wandb_key', dest='wandb_key', default='4fceea5c83c7ff2e496774cc0359554fc8912e77', type=str,
                         help='the key used to login wandb')
@@ -91,7 +89,8 @@ def main(args):
 
     # model = VAN_B3(pretrained=True, class_num=19, drop_path_rate=0.2, drop_rate=0.1)
 
-    model = InceptionNeXt_T(num_classes=19, in_channels=3)
+    # model = InceptionNeXt_T(num_classes=19, in_channels=3)
+    model = SHViT_S4(num_classes=19, in_channels=3)
 
     # model = VAN_B2(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
@@ -140,6 +139,7 @@ def main(args):
           optimizer=optimizer,
           lr_scheduler=lr_scheduler,
           logger=logger,
+          use_wandb=args.use_wandb,
           total_epoch=args.total_epoch,
           start_epoch=start_epoch,
           start_val_step=args.eval_epoch,

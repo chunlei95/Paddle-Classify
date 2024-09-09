@@ -8,7 +8,8 @@ from sklearn.metrics import classification_report
 def evaluate(model,
              val_loader,
              loss_fn,
-             epoch):
+             epoch,
+             use_wandb):
     with paddle.no_grad():
         val_start = time.time()
         eval_total_loss = 0.0
@@ -49,6 +50,7 @@ def evaluate(model,
     accuracy = metrics_dict.get('accuracy')
     metrics_dict = metrics_dict.get('macro avg')
     recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')
-    wandb.log({'accuracy': accuracy, 'recall': recall, 'precision': precision, 'f1': f1})
+    if use_wandb:
+        wandb.log({'accuracy': accuracy, 'recall': recall, 'precision': precision, 'f1': f1})
 
     return val_interval, eval_avg_loss, accuracy, f1, recall, precision
