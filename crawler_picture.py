@@ -19,7 +19,7 @@ def parseHtml(text, query, num):
     loop = tqdm(range(len(img)), total=len(img), desc='Total collect {} images'.format(len(img)), colour='green')
     for index, value in enumerate(loop):
         imageUrl = img[index]['data-imgurl']
-        imageName = 'image_extend_' + str(index) + '.jpg'
+        imageName = 'image_extend_2_' + str(index) + '.jpg'
         savePhoto(imageUrl, query, imageName)
 
 
@@ -62,11 +62,12 @@ def slideBrowseWindow(driver, number):
 if __name__ == '__main__':
     driver = webdriver.Edge()
 
-    query = '板蓝根种植'
-    num = 500
+    query = '杜仲树叶'
+    num = 200
 
     scroll_num = num // 10
-    search_url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(query)}"
+    # search_url = f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(query)}"
+    search_url = "https://images.baidu.com/search/index?ct=201326592&z=&tn=baiduimage&ipn=r&word=%E6%9D%9C%E4%BB%B2%E6%A0%91%E5%8F%B6&pn=&spn=&istype=2&ie=utf-8&oe=utf-8&cl=2&lm=-1&st=-1&fr=&fmq=1726035093346_R&ic=0&se=&sme=&width=&height=&face=0&hd=&latest=&copyright=&cs=&os=&objurl=&di=&gsm=12c&dyTabStr="
     driver.get(search_url)
     slideBrowseWindow(driver, scroll_num)
     page_source = driver.page_source

@@ -12,7 +12,8 @@ from paddle.io import DataLoader
 
 from core.train import train
 from datasets.cropidentity import CropIdentityDataset
-from models.SHViT import SHViT_S4
+from models.RepViT import RepViT
+from models.van import VAN_B3
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -23,9 +24,9 @@ warnings.filterwarnings('ignore')
 def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
-    parser.add_argument('--lr', dest='lr', default='0.0006', type=float, help='learning rate')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, default=64, help='batch size')
-    parser.add_argument('--total_epoch', dest='total_epoch', default=300, type=int, help='total training epoch')
+    parser.add_argument('--lr', dest='lr', default='0.00001', type=float, help='learning rate')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=48, help='batch size')
+    parser.add_argument('--total_epoch', dest='total_epoch', default=50, type=int, help='total training epoch')
     parser.add_argument('--eval_epoch', dest='eval_epoch', default=0, type=int,
                         help='the epoch start evaluate the training model')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -40,6 +41,7 @@ def parse_args():
                         help='whether to use wandb to log metrics')
     parser.add_argument('--wandb_key', dest='wandb_key', default='4fceea5c83c7ff2e496774cc0359554fc8912e77', type=str,
                         help='the key used to login wandb')
+    parser.add_argument('--pretrained_path', dest='pretrained_path', default=None, type=str)
     return parser.parse_args()
 
 
@@ -87,15 +89,27 @@ def main(args):
     #             norm_layer=partial(nn.LayerNorm, epsilon=1e-6),
     #             depths=[3, 3, 12, 3])
 
-    # model = VAN_B3(pretrained=True, class_num=19, drop_path_rate=0.2, drop_rate=0.1)
+    # model = RepViT(stage_channels=[64, 128, 320, 512], stage_depths=[3, 3, 21, 3])
+
+    # model = VAN_B2(pretrained=True, class_num=19, drop_path_rate=0.2, drop_rate=0.1, img_size=256)
 
     # model = InceptionNeXt_T(num_classes=19, in_channels=3)
-    model = SHViT_S4(num_classes=19, in_channels=3)
+    # model = SHViT_S4(num_classes=19, in_channels=3)
 
-    # model = VAN_B2(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
+    model = VAN_B3(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
     # model = ConvNeXt_base_224(class_num=19, drop_path_rate=0.2)
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
+
+    if args.pretrained_path:
+        model_params = paddle.load(args.pretrained_path)
+        model.set_state_dict(model_params)
+
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
+
+    # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
+    # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
+    #                                                 end_lr=args.lr)
+
     lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch)
 
     # optimizer = paddle.optimizer.Adam(parameters=model.parameters(), learning_rate=0.001)

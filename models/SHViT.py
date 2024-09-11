@@ -292,6 +292,7 @@ class StageLayer(nn.Layer):
 class SHViT(nn.Layer):
     """
     CVPR 2024 SHViT: Single-Head Vision Transformer with Memory Efficient Macro Design
+    在实际应用中效果不行（不排除参数没调好，但概率很低）
     """
     def __init__(self,
                  in_channels,
@@ -403,7 +404,7 @@ def SHViT_S4(**kwargs):
                  ffn_ratios=[2, 2, 2],
                  drop_rates=[0.1, 0.1, 0.1],
                  attn_drops=[0.1, 0.1, 0.1],
-                 drop_path_rate=0.2,
+                 drop_path_rate=0.1,
                  **kwargs)
 
 
