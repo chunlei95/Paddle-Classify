@@ -155,12 +155,12 @@ class ConvStageBlock(nn.Layer):
         residual = x
         x = self.bn(x)
         x = self.conv(x)
-        x = self.drop_path(x) * self.layer_scale_1 + residual
+        x = self.drop_path(x * self.layer_scale_1) + residual
 
         residual = x
         x = self.ffn_norm(x)
         x = self.ffn(x)
-        x = self.drop_path(x) * self.layer_scale_2 + residual
+        x = self.drop_path(x * self.layer_scale_2) + residual
         return x
 
 
@@ -184,7 +184,7 @@ class SHViTBlock(nn.Layer):
         residual = x
         x = self.bn(x)
         x = self.conv(x)
-        x = self.drop_path(x) * self.layer_scale_1 + residual
+        x = self.drop_path(x * self.layer_scale_1) + residual
 
         if self.stage_index != 0:
             residual = x
@@ -192,12 +192,12 @@ class SHViTBlock(nn.Layer):
             x = self.ln(x)
             x = paddle.transpose(x, (0, 3, 1, 2))
             x = self.attn(x)
-            x = self.drop_path(x) * self.layer_scale_2 + residual
+            x = self.drop_path(x * self.layer_scale_2) + residual
 
         residual = x
         x = self.ffn_norm(x)
         x = self.ffn(x)
-        x = self.drop_path(x) * self.layer_scale_3 + residual
+        x = self.drop_path(x * self.layer_scale_3) + residual
         return x
 
 
@@ -223,10 +223,10 @@ class SEModule(nn.Layer):
 
     def __init__(self,
                  channels,
-                 rd_ratio=1. / 16,
+                 rd_ratio=1. / 4,
                  rd_channels=None,
                  rd_divisor=8,
-                 add_maxpool=False,
+                 add_maxpool=True,
                  bias=True,
                  norm_layer=None):
         super(SEModule, self).__init__()
@@ -294,6 +294,7 @@ class SHViT(nn.Layer):
     CVPR 2024 SHViT: Single-Head Vision Transformer with Memory Efficient Macro Design
     在实际应用中效果不行（不排除参数没调好，但概率很低）
     """
+
     def __init__(self,
                  in_channels,
                  num_classes,
@@ -405,6 +406,17 @@ def SHViT_S4(**kwargs):
                  drop_rates=[0.1, 0.1, 0.1],
                  attn_drops=[0.1, 0.1, 0.1],
                  drop_path_rate=0.1,
+                 **kwargs)
+
+
+def SHViT_S5(**kwargs):
+    return SHViT(stage_channels=[320, 480, 640],
+                 stage_depths=[4, 8, 6],
+                 dim_ratios=[1 / 4.67, 1 / 4.67, 1 / 4.67],
+                 ffn_ratios=[2, 2, 2],
+                 drop_rates=[0.2, 0.2, 0.2],
+                 attn_drops=[0.2, 0.2, 0.2],
+                 drop_path_rate=0.2,
                  **kwargs)
 
 

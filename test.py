@@ -68,23 +68,24 @@ def main():
     val_end = time.time()
     metrics_dict = classification_report(label_list.cpu(), predict_list.cpu(), output_dict=True, zero_division=0)
 
-    accuracy = metrics_dict.get('accuracy')
-    metrics_dict = metrics_dict.get('macro avg')
-    recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')
+    print(metrics_dict)
+    # accuracy = metrics_dict.get('accuracy')
+    # metrics_dict = metrics_dict.get('macro avg')
+    # recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')
     logger.info('[Test]: Total {} images, total test time is {} s'.format(len(predict_list), val_end - val_start, ))
-    logger.info(
-        '[Test]: The evaluation metrics and current best model info are following: \n'
-        '     ****************************************************\n'
-        '     |  F1 Score  |  Accuracy  |  Recall  |  Precision  |\n'
-        '     ****************************************************\n'
-        '     |   {}   |   {}   |  {}  |   {}    |\n'
-        '     ****************************************************'.format(
-            '%.4f' % f1,
-            '%.4f' % accuracy,
-            '%.4f' % recall,
-            '%.4f' % precision,
-        )
-    )
+    # logger.info(
+    #     '[Test]: The evaluation metrics and current best model info are following: \n'
+    #     '     ****************************************************\n'
+    #     '     |  F1 Score  |  Accuracy  |  Recall  |  Precision  |\n'
+    #     '     ****************************************************\n'
+    #     '     |   {}   |   {}   |  {}  |   {}    |\n'
+    #     '     ****************************************************'.format(
+    #         '%.4f' % f1,
+    #         '%.4f' % accuracy,
+    #         '%.4f' % recall,
+    #         '%.4f' % precision,
+    #     )
+    # )
 
 
 if __name__ == '__main__':

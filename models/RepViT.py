@@ -119,7 +119,7 @@ class RepViTBlock(nn.Layer):
     def __init__(self, channels, block_index, drop_rate, drop_path_rate):
         super().__init__()
         self.dw_3x3 = ConvBNAct(channels, channels, 3, 1, 1, groups=channels)
-        self.dw_1x1 = ConvBNAct(channels, channels, 1, 1, 0, groups=channels)
+        self.dw_1x1 = nn.Conv2D(channels, channels, 1, 1, 0, groups=channels)
         self.block_index = block_index
         if self.block_index % 2 == 0:
             self.se_block = SEBlock(channels)

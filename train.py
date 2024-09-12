@@ -13,7 +13,10 @@ from paddle.io import DataLoader
 from core.train import train
 from datasets.cropidentity import CropIdentityDataset
 from models.RepViT import RepViT
-from models.van import VAN_B3
+# from models.van import VAN_B3
+from models.InceptionNeXt import InceptionNeXt_T
+from models.SHViT import SHViT_S4, SHViT_S5
+from models.RMT import RMT_L6, RMT_T3, RMT_M2, RMT_S
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -24,9 +27,9 @@ warnings.filterwarnings('ignore')
 def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
-    parser.add_argument('--lr', dest='lr', default='0.00001', type=float, help='learning rate')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, default=48, help='batch size')
-    parser.add_argument('--total_epoch', dest='total_epoch', default=50, type=int, help='total training epoch')
+    parser.add_argument('--lr', dest='lr', default='0.00006', type=float, help='learning rate')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--total_epoch', dest='total_epoch', default=300, type=int, help='total training epoch')
     parser.add_argument('--eval_epoch', dest='eval_epoch', default=0, type=int,
                         help='the epoch start evaluate the training model')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -94,9 +97,10 @@ def main(args):
     # model = VAN_B2(pretrained=True, class_num=19, drop_path_rate=0.2, drop_rate=0.1, img_size=256)
 
     # model = InceptionNeXt_T(num_classes=19, in_channels=3)
-    # model = SHViT_S4(num_classes=19, in_channels=3)
+    # model = SHViT_S5(num_classes=19, in_channels=3)
+    model = RMT_S(in_channels=3, num_classes=19)
 
-    model = VAN_B3(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
+    # model = VAN_B3(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
     # model = ConvNeXt_base_224(class_num=19, drop_path_rate=0.2)
 
@@ -104,7 +108,7 @@ def main(args):
         model_params = paddle.load(args.pretrained_path)
         model.set_state_dict(model_params)
 
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
     # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
