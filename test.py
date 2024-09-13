@@ -18,11 +18,11 @@ logger = setup_logger()
 
 def main():
     batch_size = 64
-    checkpoint_path = 'D:/PycharmProjects/van_b3_crop_identity.pdparams'
+    checkpoint_path = 'D:/PycharmProjects/Paddle-Classify/params/crop_identity/van_b3_crops_last.pdparams'
     paddle.device.set_device('gpu')
     data_root = 'D:/datasets/crop_identity_new'
     test_transform = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((288, 288)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -35,7 +35,7 @@ def main():
     #             mlp_ratios=[8, 8, 4, 4],
     #             norm_layer=partial(nn.LayerNorm, epsilon=1e-6),
     #             depths=[3, 3, 12, 3])
-    model = VAN_B3(class_num=19, img_size=256)
+    model = VAN_B3(class_num=19, img_size=288)
     params = paddle.load(checkpoint_path)
     model.set_state_dict(params)
     model.eval()
@@ -68,24 +68,24 @@ def main():
     val_end = time.time()
     metrics_dict = classification_report(label_list.cpu(), predict_list.cpu(), output_dict=True, zero_division=0)
 
-    print(metrics_dict)
-    # accuracy = metrics_dict.get('accuracy')
-    # metrics_dict = metrics_dict.get('macro avg')
-    # recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')
+    # print(metrics_dict)
+    accuracy = metrics_dict.get('accuracy')
+    metrics_dict = metrics_dict.get('macro avg')
+    recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')
     logger.info('[Test]: Total {} images, total test time is {} s'.format(len(predict_list), val_end - val_start, ))
-    # logger.info(
-    #     '[Test]: The evaluation metrics and current best model info are following: \n'
-    #     '     ****************************************************\n'
-    #     '     |  F1 Score  |  Accuracy  |  Recall  |  Precision  |\n'
-    #     '     ****************************************************\n'
-    #     '     |   {}   |   {}   |  {}  |   {}    |\n'
-    #     '     ****************************************************'.format(
-    #         '%.4f' % f1,
-    #         '%.4f' % accuracy,
-    #         '%.4f' % recall,
-    #         '%.4f' % precision,
-    #     )
-    # )
+    logger.info(
+        '[Test]: The evaluation metrics and current best model info are following: \n'
+        '     ****************************************************\n'
+        '     |  F1 Score  |  Accuracy  |  Recall  |  Precision  |\n'
+        '     ****************************************************\n'
+        '     |   {}   |   {}   |  {}  |   {}    |\n'
+        '     ****************************************************'.format(
+            '%.4f' % f1,
+            '%.4f' % accuracy,
+            '%.4f' % recall,
+            '%.4f' % precision,
+        )
+    )
 
 
 if __name__ == '__main__':

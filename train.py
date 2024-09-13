@@ -17,6 +17,8 @@ from models.RepViT import RepViT
 from models.InceptionNeXt import InceptionNeXt_T
 from models.SHViT import SHViT_S4, SHViT_S5
 from models.RMT import RMT_L6, RMT_T3, RMT_M2, RMT_S
+from models.efficientformer_v2 import EfficientFormerV2_S2, EfficientFormerV2_L
+from models.lggformer import LGGFormer
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -27,8 +29,8 @@ warnings.filterwarnings('ignore')
 def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
-    parser.add_argument('--lr', dest='lr', default='0.00006', type=float, help='learning rate')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--lr', dest='lr', default='0.0001', type=float, help='learning rate')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--total_epoch', dest='total_epoch', default=300, type=int, help='total training epoch')
     parser.add_argument('--eval_epoch', dest='eval_epoch', default=0, type=int,
                         help='the epoch start evaluate the training model')
@@ -98,7 +100,20 @@ def main(args):
 
     # model = InceptionNeXt_T(num_classes=19, in_channels=3)
     # model = SHViT_S5(num_classes=19, in_channels=3)
-    model = RMT_S(in_channels=3, num_classes=19)
+    # model = RMT_S(in_channels=3, num_classes=19)
+
+    # model = LGGFormer(in_channels=3,
+    #                   num_classes=19,
+    #                   patch_size=3,
+    #                   stage_channels=[48, 96, 192, 384],
+    #                   encoder_stage_blocks=[2, 2, 4, 2],
+    #                   num_heads=[2, 4, 8, 16],
+    #                   trans_layers=2,
+    #                   drop_path_rate=0.2,
+    #                   norm_type=nn.BatchNorm2D,
+    #                   act_type=nn.ReLU6)
+
+    model = EfficientFormerV2_L(in_channels=3, num_classes=19)
 
     # model = VAN_B3(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
@@ -108,13 +123,13 @@ def main(args):
         model_params = paddle.load(args.pretrained_path)
         model.set_state_dict(model_params)
 
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
 
-    # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
-    # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
-    #                                                 end_lr=args.lr)
+    lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
+    lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
+                                                    end_lr=args.lr)
 
-    lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch)
+    # lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch)
 
     # optimizer = paddle.optimizer.Adam(parameters=model.parameters(), learning_rate=0.001)
     optimizer = paddle.optimizer.AdamW(parameters=model.parameters(), learning_rate=lr_scheduler)

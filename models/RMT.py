@@ -465,6 +465,7 @@ class PatchEmbed(nn.Layer):
 class VisRetNet(nn.Layer):
 
     """
+    CVPR 2024 将源代码转换为paddlepaddle版本，非自行复现
     学习率 0.0001左右，高了损失不降，低了接近于损失不降
     """
 

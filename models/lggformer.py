@@ -104,7 +104,7 @@ class ConvNormAct(nn.Layer):
                  stride=1,
                  padding=1,
                  norm_type=None,
-                 act_type=nn.GELU,
+                 act_type=None,
                  groups=1):
         super().__init__()
         out_channels = out_channels or in_channels
@@ -114,13 +114,19 @@ class ConvNormAct(nn.Layer):
                               stride=stride,
                               padding=padding,
                               groups=groups)
-        self.norm = BuildNorm(out_channels, norm_type)
-        self.act = act_type()
+        self.norm = None
+        self.act = None
+        if norm_type is not None:
+            self.norm = BuildNorm(out_channels, norm_type)
+        if act_type is not None:
+            self.act = act_type()
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.norm(x)
-        x = self.act(x)
+        if self.norm is not None:
+            x = self.norm(x)
+        if self.act is not None:
+            x = self.act(x)
         return x
 
 
@@ -198,16 +204,9 @@ class BuildNorm(nn.Layer):
 class LGGFormer(nn.Layer):
     def __init__(self, in_channels, num_classes, patch_size=3, stage_channels=[32, 64, 128, 256],
                  encoder_stage_blocks=[3, 3, 12, 3], num_heads=[2, 4, 8, 16],
-                 trans_layers=2, drop_path_rate=0.5, norm_type=nn.LayerNorm, act_type=nn.GELU):
-
+                 trans_layers=2, drop_path_rate=0.5, norm_type=nn.BatchNorm2D, act_type=nn.ReLU6):
         super().__init__()
         self.feat_channels = stage_channels
-        if norm_type is None:
-            raise RuntimeWarning('norm type is not specified! there is no normalization in the model!')
-        if type(norm_type) == str:
-            norm_type = eval(norm_type)
-        if type(act_type) == str:
-            act_type = eval(act_type)
         block_list = encoder_stage_blocks
         dpr = np.linspace(0, drop_path_rate, sum(block_list)).tolist()
         encoder_dpr = dpr[0:sum(encoder_stage_blocks)]
@@ -221,7 +220,6 @@ class LGGFormer(nn.Layer):
                                   norm_type, act_type,
                                   encoder_dpr)
         self.norm_encoder = BuildNorm(stage_channels[-1], norm_type)
-        self.act_encoder = act_type()
         self.head = nn.Linear(stage_channels[-1], num_classes)
 
     def forward(self, x):
@@ -229,9 +227,7 @@ class LGGFormer(nn.Layer):
         x = self.embedding(x)
         x = self.encoder(x)
         x = self.norm_encoder(x)
-        x = self.act_encoder(x)
-        x = paddle.flatten(x, 2).transpose((0, 2, 1))
-        x = x.mean(axis=1)
+        x = x.mean(axis=(2, 3))
         x = self.head(x)
         return x
 
@@ -275,45 +271,35 @@ class MSLBlock(nn.Layer):
         self.norm = BuildNorm(channels, norm_type)
         self.norm_mlp = BuildNorm(channels, norm_type)
         scale_channels = channels // 1
-        # self.conv_1 = nn.Sequential(
-        #     nn.Conv2D(scale_channels, scale_channels, 3, 1, 'same', groups=scale_channels),
-        # )
-        # self.conv_2 = nn.Sequential(
-        #     nn.Conv2D(scale_channels, scale_channels, 3, 1, 'same', groups=scale_channels),
-        # )
-        # self.conv_3 = nn.Sequential(
-        #     nn.Conv2D(scale_channels, scale_channels, 3, 1, 'same', groups=scale_channels),
-        # )
-        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 'same', norm_type, act_type,
+        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 1, norm_type, act_type,
                                   groups=scale_channels)
-        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 'same', norm_type, act_type,
+        self.conv_2 = ConvNormAct(scale_channels, scale_channels, 3, 1, 1, norm_type, act_type,
                                   groups=scale_channels)
-        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 'same', norm_type, act_type,
+        self.conv_3 = ConvNormAct(scale_channels, scale_channels, 3, 1, 1, norm_type, act_type,
                                   groups=scale_channels)
         self.proj = nn.Conv2D(channels, channels, 1)
-        self.proj_1 = nn.Conv2D(channels, channels, 1)
-        self.proj_2 = nn.Conv2D(channels, channels, 1)
-        self.drop = nn.Dropout2D(attn_drop)
+        self.drop = DropPath(attn_drop)
+        self.layer_scale_1 = self.create_parameter([channels, 1, 1],
+                                                   default_initializer=nn.initializer.Constant(1.0e-6))
+        self.layer_scale_2 = self.create_parameter([channels, 1, 1],
+                                                   default_initializer=nn.initializer.Constant(1.0e-6))
         self.mlp = Mlp(channels, channels * 4, channels, act_type, attn_drop)
         # self.mlp = AMCMixer(channels, act_type)
 
     def forward(self, x):
         residual = x
-        # x = self.proj(x)
         x = self.norm(x)
         xl_1 = self.conv_1(x)
         xl_2 = self.conv_2(xl_1)
         xl_3 = self.conv_3(xl_2)
         xl = xl_1 + xl_2 + xl_3
-        xl = self.proj_1(xl)
-        xl = self.drop(xl)
+        xl = self.proj(xl)
         x = x * xl
-        x = self.proj_2(x)
-        x = x + residual
+        x = self.drop(x * self.layer_scale_1) + residual
         residual = x
         x = self.norm_mlp(x)
         x = self.mlp(x)
-        x = x + residual
+        x = self.drop(x * self.layer_scale_2) + residual
         return x
 
 
@@ -323,37 +309,24 @@ class L2GBlock(nn.Layer):
         self.norm = BuildNorm(channels, norm_type)
         self.norm_mlp = BuildNorm(channels, norm_type)
         scale_channels = channels // 2
-        # self.conv_1 = nn.Sequential(
-        #     nn.Conv2D(scale_channels, scale_channels, 3, 1, 'same', groups=scale_channels),
-        # )
-        # self.conv_2 = nn.Sequential(
-        #     nn.Conv2D(scale_channels, scale_channels, 3, 1, 'same', groups=scale_channels),
-        # )
-        # self.conv_3 = nn.Sequential(
-        #     nn.Conv2D(scale_channels, scale_channels, 3, 1, 'same', groups=scale_channels),
-        # )
-        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 'same', norm_type, act_type,
+        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 1, norm_type, act_type,
                                   groups=scale_channels)
-        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 'same', norm_type, act_type,
+        self.conv_2 = ConvNormAct(scale_channels, scale_channels, 3, 1, 1, norm_type, act_type,
                                   groups=scale_channels)
-        self.conv_1 = ConvNormAct(scale_channels, scale_channels, 3, 1, 'same', norm_type, act_type,
+        self.conv_3 = ConvNormAct(scale_channels, scale_channels, 3, 1, 1, norm_type, act_type,
                                   groups=scale_channels)
-        self.norm_xl = BuildNorm(scale_channels, norm_type)
-        self.norm_xg = BuildNorm(scale_channels, norm_type)
 
         self.gfem = GFEM(scale_channels, num_head, attn_drop)
         # self.gfem = FocusedLinearAttention(scale_channels, num_head, attn_drop)
         # self.gfem = SwinTransformerBlock(scale_channels, input_resolution, num_head, drop_path=drop_path_rate)
-        self.proj = nn.Conv2D(channels, channels, 1)
-        self.proj_x_ = nn.Conv2D(channels, scale_channels, 1)
-        self.proj_1 = nn.Conv2D(scale_channels, scale_channels, 1)
-        self.proj_2 = nn.Conv2D(channels, channels, 1)
-        self.proj_3 = nn.Conv2D(scale_channels, scale_channels, 1)
-        self.proj_4 = nn.Conv2D(scale_channels, scale_channels, 1)
+        self.proj = nn.Conv2D(scale_channels, scale_channels, 1)
         self.mod_xl = nn.Conv2D(scale_channels, scale_channels, 1)
-        self.mod_xg = nn.Conv2D(scale_channels, scale_channels, 1)
-        self.drop = nn.Dropout2D(attn_drop)
-        self.mlp = Mlp(channels, channels * 4, channels, act_type, attn_drop)
+        self.drop = DropPath(attn_drop)
+        self.mlp = Mlp(channels, channels * 4, channels, act_type)
+        self.layer_scale_1 = self.create_parameter([channels, 1, 1],
+                                                   default_initializer=nn.initializer.Constant(1.0e-6))
+        self.layer_scale_2 = self.create_parameter([channels, 1, 1],
+                                                   default_initializer=nn.initializer.Constant(1.0e-6))
         # self.mlp = AMCMixer(channels, act_type)
 
     def forward(self, x, pre_attn):
@@ -364,25 +337,16 @@ class L2GBlock(nn.Layer):
         xl_2 = self.conv_2(xl_1)
         xl_3 = self.conv_3(xl_1)
         xl = xl_1 + xl_2 + xl_3
-        xl = self.proj_1(xl)
-        xl = self.norm_xl(xl)
+        xl = self.proj(xl)
         xg, pre_attn = self.gfem(x2, xl, pre_attn)
-        xg = self.norm_xg(xg)
         mod_xl = self.mod_xl(xg)
-        mod_xl = self.drop(mod_xl)
-        mod_xg = self.mod_xg(xl)
-        mod_xg = self.drop(mod_xg)
         xl = xl * mod_xl
-        xl = self.proj_3(xl)
-        xg = xg * mod_xg
-        xg = self.proj_4(xg)
         x = paddle.concat([xl, xg], 1)
-        x = self.proj_2(x)
-        x = x + residual
+        x = self.drop(x * self.layer_scale_1) + residual
         residual = x
         x = self.norm_mlp(x)
         x = self.mlp(x)
-        x = x + residual
+        x = self.drop(x * self.layer_scale_2) + residual
         return x, pre_attn
 
 
@@ -562,12 +526,12 @@ class GFEM(nn.Layer):
         # )
         # self.k = nn.Conv2D(channels, channels, 3, 1, 1, groups=channels)
         # self.v = nn.Conv2D(channels, channels, 3, 1, 1, groups=channels)
-        self.down = ConvNormAct(channels, channels, 3, 2, 'same', norm_type, act_type,
-                                  groups=channels)
-        self.k = ConvNormAct(channels, channels, 3, 1, 'same', norm_type, act_type,
-                                  groups=channels)
-        self.v = ConvNormAct(channels, channels, 3, 1, 'same', norm_type, act_type,
-                                  groups=channels)
+        self.down = ConvNormAct(channels, channels, 3, 2, 1, norm_type, None,
+                                groups=channels)
+        self.k = ConvNormAct(channels, channels, 3, 1, 1, norm_type, None,
+                             groups=channels)
+        self.v = ConvNormAct(channels, channels, 3, 1, 1, norm_type, None,
+                             groups=channels)
         self.num_head = num_head
         self.head_dim = channels // num_head
         self.scale = self.head_dim ** -0.5
@@ -593,7 +557,7 @@ class GFEM(nn.Layer):
 
     def forward(self, x, Q, pre_attn):
         ori_H, ori_W = x.shape[2:]
-        # residual = x
+        residual = x
         Q = self.down(Q)
         B, C, H, W = Q.shape
         K = self.k(x)
@@ -614,7 +578,7 @@ class GFEM(nn.Layer):
         xg = xg.transpose([0, 2, 1, 3]).flatten(2).transpose((0, 2, 1)).reshape((B, -1, H, W))
         xg = F.interpolate(xg, [ori_H, ori_W])
         x = self.proj(xg)
-        # x = x + residual
+        x = x + residual
         return x, attn
 
 
