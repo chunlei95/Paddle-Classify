@@ -12,6 +12,7 @@ from paddle.io import DataLoader
 
 from core.train import train
 from datasets.cropidentity import CropIdentityDataset
+from datasets.pest_and_disease import PestAndDiseaseDataset
 from models.RepViT import RepViT
 # from models.van import VAN_B3
 from models.InceptionNeXt import InceptionNeXt_T
@@ -19,6 +20,7 @@ from models.SHViT import SHViT_S4, SHViT_S5
 from models.RMT import RMT_L6, RMT_T3, RMT_M2, RMT_S
 from models.efficientformer_v2 import EfficientFormerV2_S2, EfficientFormerV2_L
 from models.lggformer import LGGFormer
+from models.van import VAN_B2, VAN_B0
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -29,7 +31,7 @@ warnings.filterwarnings('ignore')
 def parse_args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--config', dest='config', type=str, help='The configuration file path')
-    parser.add_argument('--lr', dest='lr', default='0.0001', type=float, help='learning rate')
+    parser.add_argument('--lr', dest='lr', default='0.0006', type=float, help='learning rate')
     parser.add_argument('--batch_size', dest='batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--total_epoch', dest='total_epoch', default=300, type=int, help='total training epoch')
     parser.add_argument('--eval_epoch', dest='eval_epoch', default=0, type=int,
@@ -58,7 +60,8 @@ def main(args):
         np.random.seed(args.seed)
         paddle.seed(args.seed)
 
-    data_root = 'D:/datasets/crop_identity_new'
+    # data_root = 'D:/datasets/crop_identity_new'
+    data_root = 'D:/datasets/农作物病虫害数据集'
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomVerticalFlip(),
@@ -74,14 +77,24 @@ def main(args):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
-    train_dataset = CropIdentityDataset(data_root=data_root,
-                                        augment_root='D:/dataset/augment_crop_identity_train',
-                                        mode='train',
-                                        transforms=train_transform)
-    val_dataset = CropIdentityDataset(data_root=data_root,
-                                      augment_root='D:/dataset/augment_crop_identity_val',
-                                      mode='val',
-                                      transforms=val_transform)
+    # train_dataset = CropIdentityDataset(data_root=data_root,
+    #                                     augment_root='D:/dataset/augment_pest_and_disease_train',
+    #                                     mode='train',
+    #                                     transforms=train_transform)
+    # val_dataset = CropIdentityDataset(data_root=data_root,
+    #                                   augment_root='D:/dataset/augment_pest_and_disease_val',
+    #                                   mode='val',
+    #                                   transforms=val_transform)
+
+    train_dataset = PestAndDiseaseDataset(data_root=data_root,
+                                          augment_root='D:/dataset/augment_pest_and_disease_train',
+                                          mode='train',
+                                          transforms=train_transform)
+    val_dataset = PestAndDiseaseDataset(data_root=data_root,
+                                        augment_root='D:/dataset/augment_pest_and_disease_val',
+                                        mode='val',
+                                        transforms=val_transform)
+
     train_loader = DataLoader(train_dataset, shuffle=True, drop_last=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, drop_last=False, batch_size=args.batch_size)
 
@@ -96,7 +109,7 @@ def main(args):
 
     # model = RepViT(stage_channels=[64, 128, 320, 512], stage_depths=[3, 3, 21, 3])
 
-    # model = VAN_B2(pretrained=True, class_num=19, drop_path_rate=0.2, drop_rate=0.1, img_size=256)
+    model = VAN_B2(pretrained=True, class_num=123, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
 
     # model = InceptionNeXt_T(num_classes=19, in_channels=3)
     # model = SHViT_S5(num_classes=19, in_channels=3)
@@ -113,7 +126,7 @@ def main(args):
     #                   norm_type=nn.BatchNorm2D,
     #                   act_type=nn.ReLU6)
 
-    model = EfficientFormerV2_L(in_channels=3, num_classes=19)
+    # model = EfficientFormerV2_L(in_channels=3, num_classes=19)
 
     # model = VAN_B3(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
@@ -125,11 +138,11 @@ def main(args):
 
     loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
 
-    lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
-    lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
-                                                    end_lr=args.lr)
+    # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
+    # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
+    #                                                 end_lr=args.lr)
 
-    # lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch)
+    lr_scheduler = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch)
 
     # optimizer = paddle.optimizer.Adam(parameters=model.parameters(), learning_rate=0.001)
     optimizer = paddle.optimizer.AdamW(parameters=model.parameters(), learning_rate=lr_scheduler)

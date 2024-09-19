@@ -19,7 +19,7 @@ def evaluate(model,
         for val, eval_batch in enumerate(val_loop):
             val_iter_start = time.time()
             eval_inputs, eval_labels = eval_batch
-            eval_labels = eval_labels.squeeze()
+            # eval_labels = eval_labels.squeeze()
             eval_outputs = model(eval_inputs)
             val_iter_end = time.time()
             val_iter_interval = val_iter_end - val_iter_start

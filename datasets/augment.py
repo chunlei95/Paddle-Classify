@@ -109,11 +109,16 @@ def data_augment(xb, img_w, img_h, rate=0.15):
 
 
 def create_train_dataset(save_path, max_num_per_class, count_dict: dict, img_dict: dict):
-    max_num_per_class = max(count_dict.values())
+    max_num_class = max(count_dict.values())
+    min_num_class = min(count_dict.values())
+
+    max_num_per_class = (sum(count_dict.values()) - max_num_class - min_num_class) // (len(count_dict) - 2)
+
+    # max_num_per_class = sum(count_dict.values()) // len(count_dict)
     for k, v in count_dict.items():
         k_items = [k_p for k_p, v_p in img_dict.items() if v_p == k]
         for j in range(len(k_items)):
-            if j > max_num_per_class:
+            if j > int(max_num_per_class * 1.25):
                 break
             ori_img_path = k_items[j]
             _, file_name = os.path.split(ori_img_path)
@@ -121,12 +126,21 @@ def create_train_dataset(save_path, max_num_per_class, count_dict: dict, img_dic
             if not os.path.exists(new_path):
                 os.makedirs(new_path)
             new_path = new_path + '/' + file_name
-            ori_img = Image.open(ori_img_path)
-            ori_img = ori_img.convert('RGB')
-            img_arr = np.array(ori_img)
-            img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(new_path, img_arr)
-        if v < max_num_per_class:
+            try:
+                ori_img = Image.open(ori_img_path)
+                # img_arr = cv2.imdecode(np.fromfile(ori_img_path), cv2.IMREAD_COLOR)
+                # ori_img = ori_img.convert('RGB')
+                img_arr = np.array(ori_img)
+                if img_arr.shape[-1] == 4:
+                    img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGBA2BGR)
+                else:
+                    img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR)
+                cv2.imencode('.jpg', img_arr)[1].tofile(new_path)
+            except:
+                print(ori_img_path)
+                pass
+            # cv2.imwrite(new_path, img_arr)
+        if v < int(max_num_per_class * 0.75):
             diff_num = max_num_per_class - v
             aug_loop = tqdm(range(diff_num), total=diff_num, colour='green', leave=True, unit='img')
             for i in aug_loop:
@@ -137,14 +151,22 @@ def create_train_dataset(save_path, max_num_per_class, count_dict: dict, img_dic
                 if not os.path.exists(new_path):
                     os.makedirs(new_path)
                 new_path = new_path + '/' + file_name
-                ori_img = Image.open(ori_img_path)
-                ori_img = ori_img.convert('RGB')
-                img_arr = np.array(ori_img)
-                img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR)
-                img_h, img_w, _ = img_arr.shape
-                new_img = data_augment(img_arr.copy(), img_w, img_h)
-                name, ext = os.path.splitext(new_path)
-                name = name + '_' + uuid.uuid4().hex
-                save_img_path = name + ext
-                cv2.imwrite(save_img_path, new_img)
-                aug_loop.set_description('Augment images of class {}'.format(k))
+                try:
+                    ori_img = Image.open(ori_img_path)
+                    # ori_img = ori_img.convert('RGB')
+                    img_arr = np.array(ori_img)
+                    if img_arr.shape[-1] == 4:
+                        img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGBA2BGR)
+                    else:
+                        img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGB2BGR)
+                    img_h, img_w, _ = img_arr.shape
+                    new_img = data_augment(img_arr.copy(), img_w, img_h)
+                    name, ext = os.path.splitext(new_path)
+                    name = name + '_' + uuid.uuid4().hex
+                    save_img_path = name + ext
+                    cv2.imencode('.jpg', new_img)[1].tofile(save_img_path)
+                    # cv2.imwrite(save_img_path, new_img)
+                    aug_loop.set_description('Augment images of class {}'.format(k))
+                except:
+                    print(ori_img_path)
+                    pass
