@@ -3,8 +3,10 @@ import os
 from glob import glob
 
 import numpy as np
+import pandas as pd
 from PIL import Image
 from paddle.io import Dataset
+from sklearn.cluster import KMeans
 
 from datasets.augment import create_train_dataset
 
@@ -107,24 +109,36 @@ class PestAndDiseaseDataset(Dataset):
         return img, ann
 
 
-# img_list = []
-#
-#
-# def read_data(data_path):
-#     if os.path.isdir(data_path):
-#         paths = glob(data_path + '/*')
-#         for p in paths:
-#             read_data(p)
-#     else:
-#         img_list.append(data_path)
-#
-#
-# if __name__ == '__main__':
-#     read_data('/media/humrobot/Data/datasets/农作物病虫害数据集')
-#     for p in img_list:
-#         try:
-#             img = Image.open(p)
-#             img = img.convert('RGB')
-#         except:
-#             print(p)
-#             os.remove(p)
+img_list = []
+class_names = []
+data_root = ''
+
+
+def read_data(data_path):
+    if os.path.isdir(data_path):
+        paths = glob(data_path + '/*')
+        for p in paths:
+            read_data(p)
+    else:
+        class_name = os.path.split(data_path.split(data_root)[-1])[0]
+        if class_name not in class_names:
+            class_names.append(class_name)
+        img_list.append(data_path)
+
+
+if __name__ == '__main__':
+    data_root = '/media/humrobot/Data/datasets/农作物病虫害数据集'
+    data = pd.DataFrame(columns=['img_path', 'class_name'])
+    read_data(data_root)
+    class_nums = []
+    for cn in class_names:
+        class_images = [p for p in img_list if os.path.split(p.split(data_root)[-1])[0] == cn]
+        class_num = len(class_images)
+        class_nums.append(class_num)
+        for p in class_images:
+            data.append([p, cn])
+    collect_data = pd.DataFrame(dict(class_name=class_names, class_num=class_nums))
+    collect_data.to_csv('pest_and_disease_analyse.csv', index=False)
+    data.to_csv('pest_and_disease.csv', index=False)
+    kmeans = KMeans(n_clusters=5)
+    predicts = kmeans.fit_predict(class_nums)
