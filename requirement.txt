@@ -1,0 +1,10 @@
+paddlepaddle-gpu
+wandb
+python
+opencv-python
+tifffile
+scikit-learn
+tqdm
+selenium
+bs4
+colorlog

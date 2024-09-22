@@ -24,12 +24,13 @@ class PestAndDiseaseDataset(Dataset):
         img_dict = {}
         count_dict = {}
         self._read_data(data_root)
-        # print(self.CLASS_NUM)
+        print(self.CLASS_NUM)
         for i in range(self.CLASS_NUM):
             class_name = self.CLASS_NAME[i]
             class_images = [p for p in self.image_list if os.path.split(p.split(self.data_root)[-1])[0] == class_name]
+            class_images.sort()
             img_num = len(class_images)
-            np.random.seed(1234)
+            np.random.seed(42)
             np.random.shuffle(class_images)
             val_num = math.ceil(img_num * val_ratio)
             if mode == 'val':
@@ -50,7 +51,7 @@ class PestAndDiseaseDataset(Dataset):
         self.image_list = img_list
         self.label_list = ann_list
         del img_list, ann_list
-        # print(count_dict)
+        print(count_dict)
         if mode == 'train':
             if not os.path.exists(augment_root):
                 os.makedirs(augment_root)
@@ -66,7 +67,7 @@ class PestAndDiseaseDataset(Dataset):
             ann_list = []
             count_dict = {}
             self._read_data(augment_root)
-            # print(self.CLASS_NUM)
+            print(self.CLASS_NUM)
             for i in range(self.CLASS_NUM):
                 class_name = self.CLASS_NAME[i]
                 class_images = [p for p in self.image_list if
@@ -77,6 +78,7 @@ class PestAndDiseaseDataset(Dataset):
             self.image_list = img_list
             self.label_list = ann_list
             del img_list, ann_list
+            print(count_dict)
         del count_dict, img_dict
         # print(len(self.image_list))
 
@@ -103,3 +105,26 @@ class PestAndDiseaseDataset(Dataset):
         if self.transforms is not None:
             img = self.transforms(img)
         return img, ann
+
+
+# img_list = []
+#
+#
+# def read_data(data_path):
+#     if os.path.isdir(data_path):
+#         paths = glob(data_path + '/*')
+#         for p in paths:
+#             read_data(p)
+#     else:
+#         img_list.append(data_path)
+#
+#
+# if __name__ == '__main__':
+#     read_data('/media/humrobot/Data/datasets/农作物病虫害数据集')
+#     for p in img_list:
+#         try:
+#             img = Image.open(p)
+#             img = img.convert('RGB')
+#         except:
+#             print(p)
+#             os.remove(p)

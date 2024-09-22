@@ -15,7 +15,7 @@ from datasets.cropidentity import CropIdentityDataset
 from datasets.pest_and_disease import PestAndDiseaseDataset
 from models.RepViT import RepViT
 # from models.van import VAN_B3
-from models.InceptionNeXt import InceptionNeXt_T
+from models.InceptionNeXt import InceptionNeXt_T, InceptionNeXt_S, InceptionNeXt_B
 from models.SHViT import SHViT_S4, SHViT_S5
 from models.RMT import RMT_L6, RMT_T3, RMT_M2, RMT_S
 from models.efficientformer_v2 import EfficientFormerV2_S2, EfficientFormerV2_L
@@ -61,7 +61,7 @@ def main(args):
         paddle.seed(args.seed)
 
     # data_root = 'D:/datasets/crop_identity_new'
-    data_root = 'D:/datasets/农作物病虫害数据集'
+    data_root = '/media/humrobot/Data/datasets/农作物病虫害数据集'
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomVerticalFlip(),
@@ -87,11 +87,11 @@ def main(args):
     #                                   transforms=val_transform)
 
     train_dataset = PestAndDiseaseDataset(data_root=data_root,
-                                          augment_root='D:/dataset/augment_pest_and_disease_train',
+                                          augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_train',
                                           mode='train',
                                           transforms=train_transform)
     val_dataset = PestAndDiseaseDataset(data_root=data_root,
-                                        augment_root='D:/dataset/augment_pest_and_disease_val',
+                                        augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_val',
                                         mode='val',
                                         transforms=val_transform)
 
@@ -111,8 +111,8 @@ def main(args):
 
     model = VAN_B2(pretrained=True, class_num=123, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
 
-    # model = InceptionNeXt_T(num_classes=19, in_channels=3)
-    # model = SHViT_S5(num_classes=19, in_channels=3)
+    # model = InceptionNeXt_B(num_classes=123, in_channels=3)
+    # model = SHViT_S4(num_classes=123, in_channels=3)
     # model = RMT_S(in_channels=3, num_classes=19)
 
     # model = LGGFormer(in_channels=3,
@@ -126,7 +126,7 @@ def main(args):
     #                   norm_type=nn.BatchNorm2D,
     #                   act_type=nn.ReLU6)
 
-    # model = EfficientFormerV2_L(in_channels=3, num_classes=19)
+    # model = EfficientFormerV2_L(in_channels=3, num_classes=123)
 
     # model = VAN_B3(class_num=19, drop_path_rate=0.2, drop_rate=0.2)
     # model = NextViT_base_224(class_num=19, attn_drop=0.2)
@@ -136,7 +136,7 @@ def main(args):
         model_params = paddle.load(args.pretrained_path)
         model.set_state_dict(model_params)
 
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
     # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,

@@ -109,16 +109,18 @@ def data_augment(xb, img_w, img_h, rate=0.15):
 
 
 def create_train_dataset(save_path, max_num_per_class, count_dict: dict, img_dict: dict):
-    max_num_class = max(count_dict.values())
-    min_num_class = min(count_dict.values())
+    # max_num_class = max(count_dict.values())
+    # min_num_class = min(count_dict.values())
 
-    max_num_per_class = (sum(count_dict.values()) - max_num_class - min_num_class) // (len(count_dict) - 2)
+    # max_num_per_class = (sum(count_dict.values()) - max_num_class - min_num_class) // (len(count_dict) - 2)
 
-    # max_num_per_class = sum(count_dict.values()) // len(count_dict)
+    max_num_per_class = sum(count_dict.values()) // len(count_dict)
+
+    # max_num_per_class = max(count_dict.values())
     for k, v in count_dict.items():
         k_items = [k_p for k_p, v_p in img_dict.items() if v_p == k]
         for j in range(len(k_items)):
-            if j > int(max_num_per_class * 1.25):
+            if j > max_num_per_class:
                 break
             ori_img_path = k_items[j]
             _, file_name = os.path.split(ori_img_path)
@@ -140,7 +142,7 @@ def create_train_dataset(save_path, max_num_per_class, count_dict: dict, img_dic
                 print(ori_img_path)
                 pass
             # cv2.imwrite(new_path, img_arr)
-        if v < int(max_num_per_class * 0.75):
+        if v < max_num_per_class:
             diff_num = max_num_per_class - v
             aug_loop = tqdm(range(diff_num), total=diff_num, colour='green', leave=True, unit='img')
             for i in aug_loop:
