@@ -8,6 +8,7 @@ from PIL import Image
 from paddle.io import Dataset
 from sklearn.cluster import KMeans
 
+from core.train import train
 from datasets.augment import create_train_dataset
 
 
@@ -46,10 +47,10 @@ class PestAndDiseaseDataset(Dataset):
                 ann_list.extend([i] * len(class_images))
             else:
                 img_list.extend(class_images[val_num:])
-                for p in class_images[val_num:]:
-                    img_dict.update({p: class_name})
+                # for p in class_images[val_num:]:
+                #     img_dict.update({p: class_name})
                 ann_list.extend([i] * (img_num - val_num))
-                count_dict.update({class_name: (img_num - val_num)})
+                # count_dict.update({class_name: (img_num - val_num)})
         self.image_list = img_list
         self.label_list = ann_list
         del img_list, ann_list
@@ -128,17 +129,30 @@ def read_data(data_path):
 
 if __name__ == '__main__':
     data_root = '/media/humrobot/Data/datasets/农作物病虫害数据集'
-    data = pd.DataFrame(columns=['img_path', 'class_name'])
+    data = pd.DataFrame(columns=['img_path', 'class_name', 'class_id', 'mode'])
     read_data(data_root)
-    class_nums = []
+    train_class_nums = []
+    idx = 0
     for cn in class_names:
         class_images = [p for p in img_list if os.path.split(p.split(data_root)[-1])[0] == cn]
-        class_num = len(class_images)
-        class_nums.append(class_num)
-        for p in class_images:
-            data.append([p, cn])
-    collect_data = pd.DataFrame(dict(class_name=class_names, class_num=class_nums))
-    collect_data.to_csv('pest_and_disease_analyse.csv', index=False)
+        class_images.sort()
+        val_num = int(len(class_images) * 0.2)
+        np.random.seed(42)
+        np.random.shuffle(class_images)
+        val_imgs = class_images[:val_num]
+        train_imgs = class_images[val_num:]
+        train_class_num = len(train_imgs)
+        train_class_nums.append(train_class_num)
+        for p in val_imgs:
+            data.loc[len(data.index)] = [p, cn, idx, 'val']
+        for p in train_imgs:
+            data.loc[len(data.index)] = [p, cn, idx, 'train']
     data.to_csv('pest_and_disease.csv', index=False)
     kmeans = KMeans(n_clusters=5)
-    predicts = kmeans.fit_predict(class_nums)
+
+    class_nums_array = np.array(train_class_nums).reshape(-1, 1)
+    predicts = kmeans.fit_predict(class_nums_array)
+    predicts = predicts.tolist()
+    print(kmeans.cluster_centers_)
+    collect_data = pd.DataFrame(dict(class_name=class_names, class_num=train_class_nums, cluster_index=predicts))
+    collect_data.to_csv('pest_and_disease_analyse.csv', index=False)
