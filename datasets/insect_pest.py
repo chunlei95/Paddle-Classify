@@ -11,7 +11,7 @@ from sklearn.cluster import KMeans
 from datasets.augment import create_train_dataset
 
 
-class PestAndDiseaseDataset(Dataset):
+class InsectPestDataset(Dataset):
 
     def __init__(self, data_root, augment_root, val_ratio=0.2, mode='train', transforms=None):
         super().__init__()
@@ -57,10 +57,9 @@ class PestAndDiseaseDataset(Dataset):
         if mode == 'train':
             if not os.path.exists(augment_root):
                 os.makedirs(augment_root)
-            else:
-                data_paths = glob(augment_root + '/*')
-                if data_paths is None or len(data_paths) == 0:
-                    create_train_dataset(augment_root, 1000, count_dict, img_dict)
+            data_paths = glob(augment_root + '/*')
+            if data_paths is None or len(data_paths) == 0:
+                create_train_dataset(augment_root, 500, count_dict, img_dict)
             self.image_list = []
             self.label_list = []
             self.CLASS_NUM = 0
