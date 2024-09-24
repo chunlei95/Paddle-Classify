@@ -11,16 +11,9 @@ import wandb
 from paddle.io import DataLoader
 
 from core.train import train
-from datasets.cropidentity import CropIdentityDataset
-from datasets.pest_and_disease import PestAndDiseaseDataset
-from models.RepViT import RepViT
+from datasets.disease import DiseaseDataset
 # from models.van import VAN_B3
-from models.InceptionNeXt import InceptionNeXt_T, InceptionNeXt_S, InceptionNeXt_B
-from models.SHViT import SHViT_S4, SHViT_S5
-from models.RMT import RMT_L6, RMT_T3, RMT_M2, RMT_S
-from models.efficientformer_v2 import EfficientFormerV2_S2, EfficientFormerV2_L
-from models.lggformer import LGGFormer
-from models.van import VAN_B2, VAN_B0
+from models.van import VAN_B2
 from utils.logger import setup_logger
 
 logger = setup_logger('Train', 'logs/train.log')
@@ -61,7 +54,8 @@ def main(args):
         paddle.seed(args.seed)
 
     # data_root = 'D:/datasets/crop_identity_new'
-    data_root = '/media/humrobot/Data/datasets/农作物病虫害数据集'
+    # data_root = '/media/humrobot/Data/datasets/农作物病虫害数据集'
+    data_root = 'D:/datasets/病虫害数据集最新7种/病害'
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomVerticalFlip(),
@@ -86,14 +80,23 @@ def main(args):
     #                                   mode='val',
     #                                   transforms=val_transform)
 
-    train_dataset = PestAndDiseaseDataset(data_root=data_root,
-                                          augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_train',
-                                          mode='train',
-                                          transforms=train_transform)
-    val_dataset = PestAndDiseaseDataset(data_root=data_root,
-                                        augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_val',
-                                        mode='val',
-                                        transforms=val_transform)
+    train_dataset = DiseaseDataset(data_root=data_root,
+                                   augment_root='D:/dataset/aug_disease_train',
+                                   mode='train',
+                                   transforms=train_transform)
+    val_dataset = DiseaseDataset(data_root=data_root,
+                                 augment_root='D:/dataset/aug_disease_train/',
+                                 mode='val',
+                                 transforms=val_transform)
+
+    # train_dataset = PestAndDiseaseDataset(data_root=data_root,
+    #                                       augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_train',
+    #                                       mode='train',
+    #                                       transforms=train_transform)
+    # val_dataset = PestAndDiseaseDataset(data_root=data_root,
+    #                                     augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_val',
+    #                                     mode='val',
+    #                                     transforms=val_transform)
 
     train_loader = DataLoader(train_dataset, shuffle=True, drop_last=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, drop_last=False, batch_size=args.batch_size)
@@ -109,7 +112,7 @@ def main(args):
 
     # model = RepViT(stage_channels=[64, 128, 320, 512], stage_depths=[3, 3, 21, 3])
 
-    model = VAN_B2(pretrained=True, class_num=123, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
+    model = VAN_B2(pretrained=True, class_num=83, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
 
     # model = InceptionNeXt_B(num_classes=123, in_channels=3)
     # model = SHViT_S4(num_classes=123, in_channels=3)
@@ -136,7 +139,7 @@ def main(args):
         model_params = paddle.load(args.pretrained_path)
         model.set_state_dict(model_params)
 
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
 
     # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
     # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,

@@ -114,7 +114,7 @@ def create_train_dataset(save_path, max_num_per_class, count_dict: dict, img_dic
 
     # max_num_per_class = (sum(count_dict.values()) - max_num_class - min_num_class) // (len(count_dict) - 2)
 
-    max_num_per_class = sum(count_dict.values()) // len(count_dict)
+    # max_num_per_class = sum(count_dict.values()) // len(count_dict)
 
     # max_num_per_class = max(count_dict.values())
     for k, v in count_dict.items():
