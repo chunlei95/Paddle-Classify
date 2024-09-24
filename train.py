@@ -12,6 +12,7 @@ from paddle.io import DataLoader
 
 from core.train import train
 from datasets.disease import DiseaseDataset
+from datasets.insect_pest import InsectPestDataset
 # from models.van import VAN_B3
 from models.van import VAN_B2
 from utils.logger import setup_logger
@@ -85,9 +86,18 @@ def main(args):
                                    mode='train',
                                    transforms=train_transform)
     val_dataset = DiseaseDataset(data_root=data_root,
-                                 augment_root='D:/dataset/aug_disease_train/',
+                                 augment_root='D:/dataset/aug_disease_val',
                                  mode='val',
                                  transforms=val_transform)
+
+    # train_dataset = InsectPestDataset(data_root=data_root,
+    #                                   augment_root='D:/dataset/aug_insect_pest_train',
+    #                                   mode='train',
+    #                                   transforms=train_transform)
+    # val_dataset = InsectPestDataset(data_root=data_root,
+    #                                 augment_root='D:/dataset/aug_insect_pest_val',
+    #                                 mode='val',
+    #                                 transforms=val_transform)
 
     # train_dataset = PestAndDiseaseDataset(data_root=data_root,
     #                                       augment_root='/media/humrobot/Data/dataset/augment_pest_and_disease_train',
@@ -112,7 +122,7 @@ def main(args):
 
     # model = RepViT(stage_channels=[64, 128, 320, 512], stage_depths=[3, 3, 21, 3])
 
-    model = VAN_B2(pretrained=True, class_num=83, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
+    model = VAN_B2(pretrained=True, class_num=79, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
 
     # model = InceptionNeXt_B(num_classes=123, in_channels=3)
     # model = SHViT_S4(num_classes=123, in_channels=3)

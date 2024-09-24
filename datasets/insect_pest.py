@@ -46,10 +46,10 @@ class InsectPestDataset(Dataset):
                 ann_list.extend([i] * len(class_images))
             else:
                 img_list.extend(class_images[val_num:])
-                # for p in class_images[val_num:]:
-                #     img_dict.update({p: class_name})
+                for p in class_images[val_num:]:
+                    img_dict.update({p: class_name})
                 ann_list.extend([i] * (img_num - val_num))
-                # count_dict.update({class_name: (img_num - val_num)})
+                count_dict.update({class_name: (img_num - val_num)})
         self.image_list = img_list
         self.label_list = ann_list
         del img_list, ann_list
