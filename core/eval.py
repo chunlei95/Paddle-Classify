@@ -9,7 +9,8 @@ def evaluate(model,
              val_loader,
              loss_fn,
              epoch,
-             use_wandb):
+             use_wandb,
+             logger):
     with paddle.no_grad():
         val_start = time.time()
         eval_total_loss = 0.0
@@ -47,6 +48,8 @@ def evaluate(model,
     eval_avg_loss = eval_total_loss / len(val_loader)
 
     metrics_dict = classification_report(label_list.cpu(), predict_list.cpu(), output_dict=True, zero_division=0)
+    # for k, v in metrics_dict.items():
+    #     logger.info('{}: {}'.format(k, '%.4f' % v))
     accuracy = metrics_dict.get('accuracy')
     metrics_dict = metrics_dict.get('macro avg')
     recall, precision, f1 = metrics_dict.get('recall'), metrics_dict.get('precision'), metrics_dict.get('f1-score')

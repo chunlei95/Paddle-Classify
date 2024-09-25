@@ -57,7 +57,7 @@ def train(model,
 
             model.eval()
             val_interval, eval_avg_loss, accuracy, f1, recall, precision = evaluate(model, val_loader, loss_fn, epoch,
-                                                                                    use_wandb)
+                                                                                    use_wandb, logger)
             if use_wandb:
                 wandb.log({'train_loss': avg_loss, 'eval_loss': eval_avg_loss, 'lr': optimizer.get_lr()})
             logger.info(

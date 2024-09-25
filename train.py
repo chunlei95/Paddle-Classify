@@ -56,7 +56,7 @@ def main(args):
 
     # data_root = 'D:/datasets/crop_identity_new'
     # data_root = '/media/humrobot/Data/datasets/农作物病虫害数据集'
-    data_root = 'D:/datasets/病虫害数据集最新7种/病害'
+    # data_root = '/media/humrobot/Data/datasets/pest_and_disease_new/disease'
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomVerticalFlip(),
@@ -65,7 +65,7 @@ def main(args):
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        transforms.RandomErasing()
+        # transforms.RandomErasing()
     ])
     val_transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -81,14 +81,14 @@ def main(args):
     #                                   mode='val',
     #                                   transforms=val_transform)
 
-    train_dataset = DiseaseDataset(data_root=data_root,
-                                   augment_root='D:/dataset/aug_disease_train',
+    train_dataset = DiseaseDataset(file_path='/home/humrobot/PycharmProjects/Paddle-Classify/datasets/insect_pest.csv',
                                    mode='train',
-                                   transforms=train_transform)
-    val_dataset = DiseaseDataset(data_root=data_root,
-                                 augment_root='D:/dataset/aug_disease_val',
+                                   transforms=train_transform,
+                                   cluster_id=2)
+    val_dataset = DiseaseDataset(file_path='/home/humrobot/PycharmProjects/Paddle-Classify/datasets/insect_pest.csv',
                                  mode='val',
-                                 transforms=val_transform)
+                                 transforms=val_transform,
+                                 cluster_id=2)
 
     # train_dataset = InsectPestDataset(data_root=data_root,
     #                                   augment_root='D:/dataset/aug_insect_pest_train',
@@ -122,7 +122,7 @@ def main(args):
 
     # model = RepViT(stage_channels=[64, 128, 320, 512], stage_depths=[3, 3, 21, 3])
 
-    model = VAN_B2(pretrained=True, class_num=79, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
+    model = VAN_B2(pretrained=True, class_num=train_dataset.class_num, drop_path_rate=0.2, drop_rate=0.2, img_size=224)
 
     # model = InceptionNeXt_B(num_classes=123, in_channels=3)
     # model = SHViT_S4(num_classes=123, in_channels=3)
@@ -149,7 +149,7 @@ def main(args):
         model_params = paddle.load(args.pretrained_path)
         model.set_state_dict(model_params)
 
-    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.4)
+    loss_fn = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # lr_scheduler_post = paddle.optimizer.lr.CosineAnnealingDecay(learning_rate=args.lr, T_max=args.total_epoch - 5)
     # lr_scheduler = paddle.optimizer.lr.LinearWarmup(learning_rate=lr_scheduler_post, warmup_steps=5, start_lr=1.0e-6,
